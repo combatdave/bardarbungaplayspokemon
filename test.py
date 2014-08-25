@@ -7,6 +7,7 @@ import math
 
 
 import twitch
+import keypresser
 import keyholder
 
 t = twitch.Twitch();
