@@ -109,7 +109,7 @@ def DoMove(quake, center):
 		else:
 			moveDir = "up"
 
-	print quake.depth, moveDir
+	print "Depth:", quake.depth, "km, button:" moveDir
 	keyToPress = controls[moveDir]
 	k.key_press(keyToPress)
 
