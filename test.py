@@ -7,7 +7,7 @@ import math
 
 
 import twitch
-import keypresser
+import keyholder
 
 t = twitch.Twitch();
 k = keypresser.Keypresser();
@@ -111,7 +111,7 @@ def DoMove(quake, center):
 
 	print "Depth:", quake.depth, "km, button:" moveDir
 	keyToPress = controls[moveDir]
-	k.key_press(keyToPress)
+	keyholder.holdForSeconds(keyToPress, 1)
 
 
 while 1:
