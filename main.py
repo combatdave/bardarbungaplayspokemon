@@ -76,6 +76,9 @@ minLong = -18.1
 maxLong = -15
 
 
+keys = {"up":"w", "down":"w", "left":"a", "right":"d", "a":"z", "b":"x", "select":"c", "start":"v"}
+
+
 def IsRelevant(quakeData):
     lat = quakeData["lat"]
     long = quakeData["long"]
@@ -104,7 +107,8 @@ while True:
             if IsRelevant(quakeData):
                 q = Earthquake(quakeData)
 
-                print u"New earthquake! Magnitude {size}, {loc_dist} {loc_dir} of {loc_name}.".format(
+                print u"{time}: Magnitude {size}, {loc_dist} {loc_dir} of {loc_name}.".format(
+                        time = datetime.datetime.utcfromtimestamp(int(q.date)).strftime('%Y-%m-%d %H:%M:%S'),
                         size = q.size,
                         loc_dist = q.loc_dist,
                         loc_dir = q.loc_dir,
