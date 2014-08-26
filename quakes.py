@@ -14,6 +14,9 @@ import random
 def UnixToDatetime(unixTime):
     return datetime.datetime.utcfromtimestamp(int(unixTime))
 
+def DatetimeToUnix(date):
+    return str(int((date - datetime.datetime(1970, 1, 1)).total_seconds()))
+
 
 class Earthquake:
     def __init__(self, quakeData):
@@ -96,12 +99,17 @@ def IsRelevant(quakeData):
     return True
 
 
+hoursOfData = 2
+
+
 class EarthquakeStore:
     def __init__(self):
         self.lastUpdate = None
-        self.earthquakes = None
-        self.centerPoint = None
+        self.earthquakesByDate = None
         self.randomList = None
+        self.centerPoint = None
+        self.latestQuakeTime = None
+        self.sortedKeys = None
 
 
     def CheckShouldUpdate(self):
@@ -116,49 +124,62 @@ class EarthquakeStore:
 
         print "Fetching data"
 
-        url = "http://isapi.rasmuskr.dk/api/earthquakes/?date=5-hoursago"
+        url = "http://isapi.rasmuskr.dk/api/earthquakes/?date=" + str(hoursOfData) + "-hoursago"
         r = requests.get(url)
         earthquakes = r.json().get("items")
+        self.earthquakesByDate = {}
 
         for quakeData in earthquakes:
             date = quakeData["date"]
-            if not date in earthquakesByDate:
+            if not date in self.earthquakesByDate:
                 if IsRelevant(quakeData):
                     q = Earthquake(quakeData)
-                    earthquakesByDate[date] = q
+                    self.earthquakesByDate[date] = q
             else:
-                quake = earthquakesByDate[date]
+                quake = self.earthquakesByDate[date]
                 if quakeData["verified"] and not quake.verified:
-                    earthquakesByDate[date] = Earthquake(quakeData)
+                    self.earthquakesByDate[date] = Earthquake(quakeData)
 
-        times = earthquakesByDate.keys()
+        times = self.earthquakesByDate.keys()
         times = sorted(times)
+        self.sortedKeys = times
 
-        self.centerPoint = None
-        for quake in earthquakesByDate.itervalues():
-            if self.centerPoint is None:
-                self.centerPoint = (quake.lat, quake.long)
-            else:
-                self.centerPoint = (self.centerPoint[0] + quake.lat, self.centerPoint[1] + quake.long)
-
-        self.centerPoint = (self.centerPoint[0] / len(earthquakesByDate), self.centerPoint[1] / len(earthquakesByDate))
-
-        latest = UnixToDatetime(times[-1])
+        self.latestQuakeTime = UnixToDatetime(times[-1])
 
         keysToUse = []
         for i in xrange(len(times)-1, -1, -1):
             thisTime = UnixToDatetime(times[i])
-            oldness = latest - thisTime
+            oldness = self.latestQuakeTime - thisTime
             oldnessInMinutes = oldness.seconds / 60.0
-            if oldnessInMinutes <= 60:
+            if oldnessInMinutes <= 2 * 60:
                 keysToUse.append(times[i])
             else:
                 break
 
         self.randomList = []
         for timeKey in keysToUse:
-            quake = earthquakesByDate[timeKey]
+            quake = self.earthquakesByDate[timeKey]
             self.randomList += [quake] * int(math.pow(quake.size, 2.0) * 10)
+
+        self.centerPoint = self._GetCenter()
+
+
+    def GetQuakesByDate(self):
+        self.CheckShouldUpdate()
+        return self.earthquakesByDate
+
+
+    def _GetCenter(self):
+        centerPoint = None
+        for quake in self.randomList:
+            if centerPoint is None:
+                centerPoint = (quake.lat, quake.long)
+            else:
+                centerPoint = (centerPoint[0] + quake.lat, centerPoint[1] + quake.long)
+
+        centerPoint = (centerPoint[0] / len(self.randomList), centerPoint[1] / len(self.randomList))
+
+        return centerPoint
 
 
     def GetCenter(self):
