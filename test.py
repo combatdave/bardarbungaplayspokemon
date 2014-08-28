@@ -123,6 +123,7 @@ def DoNewMove():
 	now = datetime.datetime.now()
 	timeSinceLastButtonPressInSeconds = 1000000
 	global lastButtonPressTime
+	global sendKeyPresses
 
 	if lastButtonPressTime is not None:
 		timeSinceLastButtonPress = now - lastButtonPressTime
@@ -179,8 +180,11 @@ def DoNewMove():
 
 		if buttonToPress is not None:
 			keyToPress = controls[buttonToPress]
-			print now.strftime('%H:%M:%S'), "- Pressing", buttonToPress
-			PressKey(keyToPress)
+			if sendKeyPresses:
+				print now.strftime('%H:%M:%S'), "- Pressing", buttonToPress
+				PressKey(keyToPress)
+			else:
+				print now.strftime('%H:%M:%S'), "- Pressing", buttonToPress, "(sendKeyPresses = False)"
 			lastButtonPressTime = now
 			
 
@@ -313,11 +317,18 @@ def LoadFreshData():
 LoadFreshData()
 
 
+sendKeyPresses = False
+
+
 while 1:
 	milliseconds = clock.tick(FPS)
 
 	for event in pygame.event.get():
-		if event.type == pygame.QUIT: sys.exit()
+		if event.type == pygame.QUIT:
+			sys.exit()
+		elif event.type == pygame.MOUSEBUTTONDOWN:
+			sendKeyPresses = not sendKeyPresses
+			print "sendKeyPresses:", sendKeyPresses
 
 	screen.fill(pygame.Color("#A5D6FF"))
 	transparentSurface.fill((0, 0, 0, 0))
