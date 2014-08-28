@@ -33,8 +33,8 @@ class Earthquake:
 
 
     def __str__(self):
-        return u"{time}: Magnitude {size}, {loc_dist} {loc_dir} of {loc_name}.".format(
-                        time = self.date.strftime('%Y-%m-%d %H:%M:%S'),
+        return u"{time} Magnitude {size}, {loc_dist} {loc_dir} of {loc_name}.".format(
+                        time = self.date.strftime('%H:%M:%S'),
                         size = self.size,
                         loc_dist = self.loc_dist,
                         loc_dir = self.loc_dir,

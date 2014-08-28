@@ -275,10 +275,10 @@ def DrawQuakeOnMap(surface, quake, timeInDuration, active=False):
 
 
 clock = pygame.time.Clock()
-FPS = 20
+FPS = 10
 
 periodTimeInSeconds = 60 * 60 * quakes.hoursOfData
-timeForFullPeriodInSeconds = 60 * 10
+timeForFullPeriodInSeconds = 60 * 5
 
 currentQuake = None
 prevQuake = None
@@ -295,6 +295,8 @@ lastButtonPressTime = None
 def LoadFreshData():
 	# Render all to staticQuakeSurface
 	now = datetime.datetime.now()
+	global startEvalTime
+	global periodTimeInSeconds
 	startEvalTime = now
 	quakeStore.LoadData()
 	staticQuakeSurface.fill((0,0,0,0))
@@ -303,11 +305,11 @@ def LoadFreshData():
 		quake = quakeStore.earthquakesByDate[quakeTime]
 
 		timeSinceQuake = quakeStore.latestQuakeTime - quake.date
-		
+
 		timeInDuration = 1.0 - (timeSinceQuake.seconds / float(periodTimeInSeconds))
 
 		if timeInDuration < 0:
-			continue
+		 	continue
 
 		DrawQuakeOnMagnitudeGraph(staticQuakeSurface, quake, timeInDuration)
 		DrawQuakeOnMap(staticQuakeSurface, quake, timeInDuration)
@@ -317,6 +319,8 @@ LoadFreshData()
 
 
 sendKeyPresses = False
+
+font = pygame.font.Font(None, 20)
 
 
 while 1:
@@ -359,6 +363,8 @@ while 1:
 			DrawQuakeOnMagnitudeGraph(transparentSurface, currentQuake, timeInDuration, True)
 			DrawQuakeOnMap(transparentSurface, currentQuake, timeInDuration, True)
 			DrawArrowPixels(centerPixelPos, LatLongToPixels(currentQuake.long, currentQuake.lat), pygame.Color("#FF00DC"), 3)
+		else:
+			currentQuake = None
 
 
 	flagDrawPos = (centerPixelPos[0] - 1, centerPixelPos[1] - flagimg.get_height())
@@ -393,16 +399,14 @@ while 1:
 		leftTime = None
 		rightTime = None
 		lastTimeIndex = None
-		
+		LoadFreshData()
 
 
 	pygame.draw.circle(transparentSurface, pygame.Color(0, 0, 0, 128), centerPixelPos, doDirectionRadiusInPixels, 3)
 	pygame.draw.line(transparentSurface, pygame.Color(0, 0, 0, 128), (centerPixelPos[0]+doDirectionRadiusInPixels, centerPixelPos[1]), (width, centerPixelPos[1]), 3)
 	pygame.draw.line(transparentSurface, pygame.Color(0, 0, 0, 128), (centerPixelPos[0]-doDirectionRadiusInPixels, centerPixelPos[1]), (leftpx, centerPixelPos[1]), 3)
 
-
 	DoNewMove()
-
 
 	triTipX = TimeInDurationToMapPos(currentEvalPos)
 	triTipY = height - 20
@@ -412,6 +416,12 @@ while 1:
 
 	text = "Bardarbunga Plays Pokemon - FPS: {0:.2f}".format(clock.get_fps())
 	pygame.display.set_caption(text)
+
+	text = font.render("Data time: " + currentEvalTime.strftime("%Y-%m-%d %H:%M:%S"), 1, (255, 255, 255))
+	screen.blit(text, (5, 280))
+	if currentQuake is not None:
+		text = font.render("Last quake: " + str(currentQuake), 1, (255, 255, 255))
+		screen.blit(text, (5, 300))
 
 	pygame.display.flip()
 
