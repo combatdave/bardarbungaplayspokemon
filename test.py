@@ -5,7 +5,7 @@ import quakes
 import datetime
 import random
 import math
-
+import win32api, win32con
 
 import twitch
 import keypresser
@@ -75,6 +75,8 @@ screen = pygame.display.set_mode(size)
 mapimg = pygame.image.load("mapcropped.png")
 depthbar = pygame.image.load("depth.png")
 depthbar.convert_alpha()
+flagimg = pygame.image.load("flag.png")
+flagimg.convert_alpha()
 
 aButtonDepthThreshold = 2
 bButtonDepthThreshold = 12.5
@@ -113,6 +115,91 @@ def DoMove(now, quake, lastQuake):
 	keyholder.holdForSeconds(keyToPress, 0.2)
 
 
+keysToRelease = []
+
+
+def PressKey(key):
+	win32api.keybd_event(keyholder.VK_CODE[key], 0, 0, 0)
+	keysToRelease.append(HeldKey(key, datetime.datetime.now() + datetime.timedelta(seconds=0.2)))
+
+
+def ProcessKeysToRelease():
+	now = datetime.datetime.now()
+	for i, heldKey in enumerate(keysToRelease):
+		if now > heldKey.releaseTime:
+			win32api.keybd_event(keyholder.VK_CODE[heldKey.key], 0, win32con.KEYEVENTF_KEYUP, 0)
+		else:
+			break
+	keysToRelease = keysToRelease[i:]
+
+
+class HeldKey:
+	def __init__(self, key, releaseTime):
+		self.key = key
+		self.releaseTime = releaseTime
+
+
+def DoNewMove():
+	# timeSinceLastButtonPressInSeconds = 1000000
+	# if lastButtonPressTime is not None:
+	# 	timeSinceLastButtonPress = now - lastButtonPressTime
+	# 	timeSinceLastButtonPressInSeconds = timeSinceLastButtonPress.seconds + (timeSinceLastButtonPress.microseconds / 1000000.0)
+
+	# if currentQuake is not None and timeSinceLastButtonPressInSeconds > 2.0:
+	if True:
+		quakePixels = pygame.mouse.get_pos() #LatLongToPixels(currentQuake.long, currentQuake.lat)
+
+		DrawArrowPixels(centerPixelPos, quakePixels, pygame.Color("black"), 2)
+
+		quakeXDist = quakePixels[0] - centerPixelPos[0]
+		quakeYDist = quakePixels[1] - centerPixelPos[1]
+		distanceToQuakeInPixels = math.sqrt(quakeXDist ** 2 + quakeYDist ** 2)
+
+		buttonToPress = None
+
+		if distanceToQuakeInPixels > doDirectionRadiusInPixels:
+			if quakeYDist < 0:
+				buttonToPress = "a"
+			else:
+				buttonToPress = "b"
+		else:
+			angleToQuake = math.atan2(-quakeYDist, quakeXDist) % (2 * math.pi)
+			angleToQuake = math.degrees(angleToQuake)
+
+			roundedAngle = ((angleToQuake - 45) / 90) % 4
+			angleID = math.floor(roundedAngle)
+			angleID2 = angleID
+
+			remainder = roundedAngle - angleID
+			if remainder < 0.5:
+				angleID2 = angleID - 1
+			else:
+				angleID2 = angleID + 1
+
+			angleID = int(angleID) % 4
+			angleID2 = int(angleID2) % 4
+
+			directionsByAngleID = ["north", "west", "south", "east"]
+
+			closenessToStraight = 1.0 - math.fabs((roundedAngle % 1) - 0.5)
+
+			firstChoice = directionsByAngleID[angleID]
+			secondChoice = directionsByAngleID[angleID2]
+			choices = []
+			choices += [firstChoice] * int(closenessToStraight * 10)
+			choices += [secondChoice] * int((1 - closenessToStraight) * 10)
+
+			directionToGo = random.choice(choices)
+
+			directionsToButtonName = {"north":"up", "west":"left", "south":"down", "east":"right"}
+
+			buttonToPress = directionsToButtonName[directionToGo]
+
+		if buttonToPress is not None:
+			keyToPress = controls[buttonToPress]
+			PressKey(keyToPress)
+
+
 def DrawArrow(fromQuake, toQuake, color):
 	fromPixels = LatLongToPixels(fromQuake.long, fromQuake.lat)
 	toPixels = LatLongToPixels(toQuake.long, toQuake.lat)
@@ -120,7 +207,7 @@ def DrawArrow(fromQuake, toQuake, color):
 	DrawArrowPixels(fromPixels, toPixels, color)
 
 
-def DrawArrowPixels(fromPixels, toPixels, color):
+def DrawArrowPixels(fromPixels, toPixels, color, width=1):
 	dx = fromPixels[0] - toPixels[0]
 	dy = fromPixels[1] - toPixels[1]
 
@@ -129,17 +216,17 @@ def DrawArrowPixels(fromPixels, toPixels, color):
 
 	arrowLength = 5
 
-	pygame.draw.line(screen, color, fromPixels, toPixels)
+	pygame.draw.line(transparentSurface, color, fromPixels, toPixels, width)
 
 	leftDegs = degs + 45
 	leftX = toPixels[0] + (math.sin(math.radians(leftDegs)) * arrowLength)
 	leftY = toPixels[1] + (math.cos(math.radians(leftDegs)) * arrowLength)
-	pygame.draw.line(screen, color, toPixels, (leftX, leftY))
+	pygame.draw.line(transparentSurface, color, toPixels, (leftX, leftY), width)
 
 	rightDegs = degs + 135
 	rightX = toPixels[0] + (math.sin(math.radians(rightDegs)) * arrowLength)
 	rightY = toPixels[1] + (math.cos(math.radians(rightDegs)) * arrowLength)
-	pygame.draw.line(screen, color, toPixels, (rightX, rightY))
+	pygame.draw.line(transparentSurface, color, toPixels, (rightX, rightY), width)
 
 
 def LerpColor(color1, color2, lerp):
@@ -202,7 +289,7 @@ clock = pygame.time.Clock()
 FPS = 20
 
 periodTimeInSeconds = 60 * 60 * quakes.hoursOfData
-timeForFullPeriodInSeconds = 5 #60
+timeForFullPeriodInSeconds = 60 * 60
 
 currentQuake = None
 prevQuake = None
@@ -211,6 +298,11 @@ startEvalTime = datetime.datetime.now()
 lastTimeIndex = None
 leftTime = None
 rightTime = None
+
+quakeStore.LoadData()
+
+doDirectionRadiusInPixels = 60
+lastButtonPressTime = None
 
 while 1:
 	milliseconds = clock.tick(FPS)
@@ -223,7 +315,9 @@ while 1:
 
 	screen.blit(mapimg, (leftpx, toppx))
 
-	quakeStore.CheckShouldUpdate()
+	centerLat = quakeStore.centerPoint[0]
+	centerLong = quakeStore.centerPoint[1]
+	centerPixelPos = LatLongToPixels(centerLong, centerLat)
 	
 	for quakeTime in quakeStore.sortedKeys:
 		quake = quakeStore.earthquakesByDate[quakeTime]
@@ -243,24 +337,12 @@ while 1:
 
 
 	if leftTime is not None:
-		quake = quakeStore.earthquakesByDate[leftTime]
+		currentQuake = quakeStore.earthquakesByDate[leftTime]
+	else:
+		currentQuake = None
 
-		timeSinceQuake = quakeStore.latestQuakeTime - quake.date
-
-		quakeGraphLeft = 50
-		quakeGraphRight = width - 50
-		
-		timeInDuration = 1.0 - (timeSinceQuake.seconds / float(periodTimeInSeconds))
-
-		if timeInDuration >= 0:
-			DrawQuakeOnMagnitudeGraph(quake, timeInDuration, True)
-			DrawQuakeOnMap(quake, timeInDuration, True)
-
-
-	if rightTime is not None:
-		quake = quakeStore.earthquakesByDate[rightTime]
-
-		timeSinceQuake = quakeStore.latestQuakeTime - quake.date
+	if currentQuake is not None:
+		timeSinceQuake = quakeStore.latestQuakeTime - currentQuake.date
 
 		quakeGraphLeft = 50
 		quakeGraphRight = width - 50
@@ -268,12 +350,14 @@ while 1:
 		timeInDuration = 1.0 - (timeSinceQuake.seconds / float(periodTimeInSeconds))
 
 		if timeInDuration >= 0:
-			DrawQuakeOnMagnitudeGraph(quake, timeInDuration, True)
-			DrawQuakeOnMap(quake, timeInDuration, True)
+			DrawQuakeOnMagnitudeGraph(currentQuake, timeInDuration, True)
+			DrawQuakeOnMap(currentQuake, timeInDuration, True)
+
+			DrawArrowPixels(centerPixelPos, LatLongToPixels(currentQuake.long, currentQuake.lat), pygame.Color("#FF00DC"), 3)
 
 
-
-	screen.blit(transparentSurface, (0, 0))
+	flagDrawPos = (centerPixelPos[0] - 1, centerPixelPos[1] - flagimg.get_height())
+	transparentSurface.blit(flagimg, flagDrawPos)
 
 	now = datetime.datetime.now()
 	timePassed = now - startEvalTime
@@ -296,31 +380,35 @@ while 1:
 		if quakes.UnixToDatetime(currentRightTime) < currentEvalTime:
 			lastTimeIndex += 1
 
-	if lastTimeIndex < len(quakeStore.sortedKeys):
-		leftTime = quakeStore.sortedKeys[lastTimeIndex - 1]
+	if lastTimeIndex < len(quakeStore.sortedKeys) and currentEvalPos <= 1:
+		leftIndex = max(0, lastTimeIndex-1)
+		leftTime = quakeStore.sortedKeys[leftIndex]
 		rightTime = quakeStore.sortedKeys[lastTimeIndex ]
 	else:
 		leftTime = None
 		rightTime = None
 		lastTimeIndex = None
+		startEvalTime = now
 		quakeStore.LoadData()
+
+
+	pygame.draw.circle(transparentSurface, pygame.Color(0, 0, 0, 128), centerPixelPos, doDirectionRadiusInPixels, 3)
+	pygame.draw.line(transparentSurface, pygame.Color(0, 0, 0, 128), (centerPixelPos[0]+doDirectionRadiusInPixels, centerPixelPos[1]), (width, centerPixelPos[1]), 3)
+	pygame.draw.line(transparentSurface, pygame.Color(0, 0, 0, 128), (centerPixelPos[0]-doDirectionRadiusInPixels, centerPixelPos[1]), (leftpx, centerPixelPos[1]), 3)
+
+
+	DoNewMove()
 
 
 	triTipX = TimeInDurationToMapPos(currentEvalPos)
 	triTipY = height - 20
 	pygame.draw.polygon(screen, pygame.Color("black"), [[triTipX-5, triTipY+10], [triTipX, triTipY], [triTipX+5, triTipY+10]])
 
-
-	# timePassed = (now - lastMove).seconds
-	# if timePassed > secondsBetweenMoves:
-	# 	lastQuake = moveQuake
-	# 	moveQuake = quakeStore.GetRandomQuake()
-
-	# 	DoMove(now, moveQuake, lastQuake)
-
-	# 	lastMove = now
+	screen.blit(transparentSurface, (0, 0))
 
 	text = "Bardarbunga Plays Pokemon - FPS: {0:.2f}".format(clock.get_fps())
 	pygame.display.set_caption(text)
 
 	pygame.display.flip()
+
+	ProcessKeysToRelease

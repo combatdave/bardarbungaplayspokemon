@@ -89,6 +89,7 @@ maxLong = -15
 def IsRelevant(quakeData):
     lat = quakeData["lat"]
     long = quakeData["long"]
+    size = quakeData["size"]
 
     if lat < minLat or lat > maxLat:
         return False
@@ -96,10 +97,13 @@ def IsRelevant(quakeData):
     if long < minLong or long > maxLong:
         return False
 
+    if size < 0.1:
+        return False
+
     return True
 
 
-hoursOfData = 2
+hoursOfData = 24
 
 
 class EarthquakeStore:
@@ -131,14 +135,9 @@ class EarthquakeStore:
 
         for quakeData in earthquakes:
             date = quakeData["date"]
-            if not date in self.earthquakesByDate:
-                if IsRelevant(quakeData):
-                    q = Earthquake(quakeData)
-                    self.earthquakesByDate[date] = q
-            else:
-                quake = self.earthquakesByDate[date]
-                if quakeData["verified"] and not quake.verified:
-                    self.earthquakesByDate[date] = Earthquake(quakeData)
+            if IsRelevant(quakeData):
+                q = Earthquake(quakeData)
+                self.earthquakesByDate[date] = q
 
         times = self.earthquakesByDate.keys()
         times = sorted(times)
@@ -156,11 +155,6 @@ class EarthquakeStore:
             else:
                 break
 
-        self.randomList = []
-        for timeKey in keysToUse:
-            quake = self.earthquakesByDate[timeKey]
-            self.randomList += [quake] * int(math.pow(quake.size, 2.0) * 10)
-
         self.centerPoint = self._GetCenter()
 
 
@@ -171,72 +165,12 @@ class EarthquakeStore:
 
     def _GetCenter(self):
         centerPoint = None
-        for quake in self.randomList:
+        for quake in self.earthquakesByDate.itervalues():
             if centerPoint is None:
                 centerPoint = (quake.lat, quake.long)
             else:
                 centerPoint = (centerPoint[0] + quake.lat, centerPoint[1] + quake.long)
 
-        centerPoint = (centerPoint[0] / len(self.randomList), centerPoint[1] / len(self.randomList))
+        centerPoint = (centerPoint[0] / len(self.earthquakesByDate), centerPoint[1] / len(self.earthquakesByDate))
 
         return centerPoint
-
-
-    def GetCenter(self):
-        self.CheckShouldUpdate()
-        if self.centerPoint is None:
-            self.LoadData()
-        return self.centerPoint
-
-
-    def GetRandomQuake(self):
-        return random.choice(self.GetRandomList())
-
-
-    def GetRandomList(self):
-        self.CheckShouldUpdate()
-        if self.randomList is None or len(self.randomList) == 0:
-            self.LoadData()
-        return self.randomList
-
-
-if __name__ == "__main__":
-    #The main loop
-    while True:
-        #Check for new mesasages
-        #new_messages = t.twitch_recieve_messages();
-
-
-        # Do a move every x seconds for y minutes
-        secondsBetweenMoves = 2
-        minutesUntilUpdate = 3
-        start = datetime.datetime.now()
-        while True:
-            quakeToUse = random.choice(randomList)
-
-            time.sleep(secondsBetweenMoves)
-
-            now = datetime.datetime.now()
-            timePassed = (now - start).seconds
-            if timePassed > minutesUntilUpdate * 60:
-                break
-
-
-        # if not new_messages:
-        #     #No new messages...
-        #     continue
-        # else:
-        #     for message in new_messages:
-        #         #Wuhu we got a message. Let's extract some details from it
-        #         msg = message['message'].lower()
-        #         username = message['username'].lower()
-        #         print(username + ": " + msg);
-
-        #         #This is where you change the keys that shall be pressed and listened to.
-        #         #The code below will simulate the key q if "q" is typed into twitch by someone
-        #         #.. the same thing with "w"
-        #         #Change this to make Twitch fit to your game!
-        #         if msg == "q": k.key_press("q");
-        #         if msg == "w": k.key_press("w");
-
-        time.sleep(10)

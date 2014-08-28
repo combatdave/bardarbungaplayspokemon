@@ -95,3 +95,4 @@ $RECYCLE.BIN/
 *.msp
 
 .vagrant/
+xbc_installer.exe
