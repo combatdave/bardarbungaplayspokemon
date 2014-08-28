@@ -132,8 +132,6 @@ def DoNewMove():
 	if currentQuake is not None and timeSinceLastButtonPressInSeconds > 2.0:
 		quakePixels = LatLongToPixels(currentQuake.long, currentQuake.lat)
 
-		DrawArrowPixels(centerPixelPos, quakePixels, pygame.Color("black"), 2)
-
 		quakeXDist = quakePixels[0] - centerPixelPos[0]
 		quakeYDist = quakePixels[1] - centerPixelPos[1]
 		distanceToQuakeInPixels = math.sqrt(quakeXDist ** 2 + quakeYDist ** 2)
@@ -330,8 +328,10 @@ while 1:
 			sendKeyPresses = not sendKeyPresses
 			print "sendKeyPresses:", sendKeyPresses
 
-	screen.fill(pygame.Color("#A5D6FF"))
+	screen.fill(pygame.Color("#000000"))
 	transparentSurface.fill((0, 0, 0, 0))
+
+	pygame.draw.rect(screen, pygame.Color("#75C5FF"), (0, bottompx - 200, leftpx, 400))
 
 	screen.blit(mapimg, (leftpx, toppx))
 	screen.blit(staticQuakeSurface, (0, 0))
