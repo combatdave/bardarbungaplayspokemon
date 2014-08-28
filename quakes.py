@@ -103,7 +103,7 @@ def IsRelevant(quakeData):
     return True
 
 
-hoursOfData = 24
+hoursOfData = 1
 
 
 class EarthquakeStore:

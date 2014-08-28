@@ -180,6 +180,7 @@ def DoNewMove():
 			keyToPress = controls[buttonToPress]
 			if sendKeyPresses:
 				print now.strftime('%H:%M:%S'), "- Pressing", buttonToPress
+				DrawArrowPixels(centerPixelPos, quakePixels, pygame.Color("black"), 3)
 				PressKey(keyToPress)
 			else:
 				print now.strftime('%H:%M:%S'), "- Pressing", buttonToPress, "(sendKeyPresses = False)"
@@ -277,7 +278,7 @@ clock = pygame.time.Clock()
 FPS = 20
 
 periodTimeInSeconds = 60 * 60 * quakes.hoursOfData
-timeForFullPeriodInSeconds = 60 * 60
+timeForFullPeriodInSeconds = 60 * 10
 
 currentQuake = None
 prevQuake = None
