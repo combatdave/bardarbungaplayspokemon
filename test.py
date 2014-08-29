@@ -77,6 +77,25 @@ depthbar = pygame.image.load("depth.png")
 depthbar.convert_alpha()
 flagimg = pygame.image.load("flag.png")
 flagimg.convert_alpha()
+dpadimg = pygame.image.load("dpad.png")
+dpadimg.convert_alpha()
+dpadupimg = pygame.image.load("dpadup.png")
+dpadupimg.convert_alpha()
+dpadrightimg = pygame.image.load("dpadright.png")
+dpadrightimg.convert_alpha()
+dpaddownimg = pygame.image.load("dpaddown.png")
+dpaddownimg.convert_alpha()
+dpadleftimg = pygame.image.load("dpadleft.png")
+dpadleftimg.convert_alpha()
+abuttonimg = pygame.image.load("abutton.png")
+abuttonimg.convert_alpha()
+bbuttonimg = pygame.image.load("bbutton.png")
+bbuttonimg.convert_alpha()
+abuttonselectedimg = pygame.image.load("abuttonselected.png")
+abuttonselectedimg.convert_alpha()
+bbuttonselectedimg = pygame.image.load("bbuttonselected.png")
+bbuttonselectedimg.convert_alpha()
+
 
 aButtonDepthThreshold = 2
 bButtonDepthThreshold = 12.5
@@ -118,12 +137,14 @@ class HeldKey:
 		self.key = key
 		self.releaseTime = releaseTime
 
+lastButtonPressed = None
 
 def DoNewMove():
 	now = datetime.datetime.now()
 	timeSinceLastButtonPressInSeconds = 1000000
 	global lastButtonPressTime
 	global sendKeyPresses
+	global lastButtonPressed
 
 	if lastButtonPressTime is not None:
 		timeSinceLastButtonPress = now - lastButtonPressTime
@@ -177,6 +198,7 @@ def DoNewMove():
 			buttonToPress = directionsToButtonName[directionToGo]
 
 		if buttonToPress is not None:
+			lastButtonPressed = buttonToPress
 			keyToPress = controls[buttonToPress]
 			if sendKeyPresses:
 				print now.strftime('%H:%M:%S'), "- Pressing", buttonToPress
@@ -201,7 +223,7 @@ def DrawArrowPixels(fromPixels, toPixels, color, width=1):
 	rads = math.atan2(-dy, dx)
 	degs = math.degrees(rads)
 
-	arrowLength = 5
+	arrowLength = 10
 
 	pygame.draw.line(transparentSurface, color, fromPixels, toPixels, width)
 
@@ -274,6 +296,31 @@ def DrawQuakeOnMap(surface, quake, timeInDuration, active=False):
 	DrawQuake(surface, quake, circleColor, 5)
 
 
+def DrawButtons():
+	global lastButtonPressed
+
+	dpadImgToUse = dpadimg
+	abuttonImgToUse = abuttonimg
+	bbuttonImgToUse = bbuttonimg
+
+	if lastButtonPressed == "up":
+		dpadImgToUse = dpadupimg
+	elif lastButtonPressed == "right":
+		dpadImgToUse = dpadrightimg
+	elif lastButtonPressed == "down":
+		dpadImgToUse = dpaddownimg
+	elif lastButtonPressed == "left":
+		dpadImgToUse = dpadleftimg
+	elif lastButtonPressed == "a":
+		abuttonImgToUse = abuttonselectedimg
+	elif lastButtonPressed == "b":
+		bbuttonImgToUse = bbuttonselectedimg
+
+	screen.blit(abuttonImgToUse, (centerPixelPos[0] - abuttonimg.get_width() / 2, centerPixelPos[1] - 100 - abuttonimg.get_height() / 2))
+	screen.blit(bbuttonImgToUse, (centerPixelPos[0] - bbuttonimg.get_width() / 2, centerPixelPos[1] + 100 - bbuttonimg.get_height() / 2))
+	screen.blit(dpadImgToUse, (centerPixelPos[0] - dpadimg.get_width() / 2, centerPixelPos[1] - dpadimg.get_height() / 2))
+
+
 clock = pygame.time.Clock()
 FPS = 10
 
@@ -285,8 +332,6 @@ prevQuake = None
 startEvalTime = datetime.datetime.now()
 
 lastTimeIndex = None
-leftTime = None
-rightTime = None
 
 doDirectionRadiusInPixels = 60
 lastButtonPressTime = None
@@ -297,6 +342,12 @@ def LoadFreshData():
 	now = datetime.datetime.now()
 	global startEvalTime
 	global periodTimeInSeconds
+	global lastTimeIndex
+	global lastButtonPressed
+
+	lastTimeIndex = None
+	lastButtonPressed = None
+
 	startEvalTime = now
 	quakeStore.LoadData()
 	staticQuakeSurface.fill((0,0,0,0))
@@ -341,16 +392,13 @@ while 1:
 	screen.blit(mapimg, (leftpx, toppx))
 	screen.blit(staticQuakeSurface, (0, 0))
 
-	centerLat = quakeStore.centerPoint[0]
-	centerLong = quakeStore.centerPoint[1]
-	centerPixelPos = LatLongToPixels(centerLong, centerLat)
-	
-
-	if leftTime is not None:
-		currentQuake = quakeStore.earthquakesByDate[leftTime]
+	if prevQuake is not None:
+		centerPixelPos = LatLongToPixels(prevQuake.long, prevQuake.lat)
 	else:
-		currentQuake = None
-
+		centerLat = quakeStore.centerPoint[0]
+		centerLong = quakeStore.centerPoint[1]
+		centerPixelPos = LatLongToPixels(centerLong, centerLat)
+	
 	if currentQuake is not None:
 		timeSinceQuake = quakeStore.latestQuakeTime - currentQuake.date
 
@@ -362,10 +410,8 @@ while 1:
 		if timeInDuration >= 0:
 			DrawQuakeOnMagnitudeGraph(transparentSurface, currentQuake, timeInDuration, True)
 			DrawQuakeOnMap(transparentSurface, currentQuake, timeInDuration, True)
-			DrawArrowPixels(centerPixelPos, LatLongToPixels(currentQuake.long, currentQuake.lat), pygame.Color("#FF00DC"), 3)
 		else:
 			currentQuake = None
-
 
 	flagDrawPos = (centerPixelPos[0] - 1, centerPixelPos[1] - flagimg.get_height())
 	transparentSurface.blit(flagimg, flagDrawPos)
@@ -394,11 +440,13 @@ while 1:
 	if lastTimeIndex < len(quakeStore.sortedKeys) and currentEvalPos <= 1:
 		leftIndex = max(0, lastTimeIndex-1)
 		leftTime = quakeStore.sortedKeys[leftIndex]
-		rightTime = quakeStore.sortedKeys[lastTimeIndex ]
+		thisQuake = quakeStore.earthquakesByDate[leftTime]
+
+		if thisQuake != currentQuake:
+			prevQuake = currentQuake
+			currentQuake = thisQuake
+			lastButtonPressed = None
 	else:
-		leftTime = None
-		rightTime = None
-		lastTimeIndex = None
 		LoadFreshData()
 
 
@@ -411,6 +459,11 @@ while 1:
 	triTipX = TimeInDurationToMapPos(currentEvalPos)
 	triTipY = height - 20
 	pygame.draw.polygon(screen, pygame.Color("black"), [[triTipX-5, triTipY+10], [triTipX, triTipY], [triTipX+5, triTipY+10]])
+
+	DrawButtons()
+
+	if currentQuake is not None:
+		DrawArrowPixels(centerPixelPos, LatLongToPixels(currentQuake.long, currentQuake.lat), pygame.Color("#000000"), 3)
 
 	screen.blit(transparentSurface, (0, 0))
 
