@@ -159,10 +159,14 @@ def DoNewMove():
 
 		buttonToPress = None
 
+		humanText = ""
+
 		if distanceToQuakeInPixels > doDirectionRadiusInPixels:
 			if quakeYDist < 0:
+				humanText = "Too far away (North)"
 				buttonToPress = "a"
 			else:
+				humanText = "Too far away (South)"
 				buttonToPress = "b"
 		else:
 			angleToQuake = math.atan2(-quakeYDist, quakeXDist) % (2 * math.pi)
@@ -181,7 +185,7 @@ def DoNewMove():
 			angleID = int(angleID) % 4
 			angleID2 = int(angleID2) % 4
 
-			directionsByAngleID = ["north", "west", "south", "east"]
+			directionsByAngleID = ["North", "West", "South", "East"]
 
 			closenessToStraight = 1.0 - math.fabs((roundedAngle % 1) - 0.5)
 
@@ -193,19 +197,27 @@ def DoNewMove():
 
 			directionToGo = random.choice(choices)
 
-			directionsToButtonName = {"north":"up", "west":"left", "south":"down", "east":"right"}
+			directionsToButtonName = {"North":"up", "West":"left", "South":"down", "East":"right"}
 
 			buttonToPress = directionsToButtonName[directionToGo]
+
+			humanText = "Direction from last quake: "
+			if angleID == angleID2:
+				humanText += directionsByAngleID[angleID]
+			elif angleID % 2 == 0:
+				humanText += directionsByAngleID[angleID] + "-" + directionsByAngleID[angleID2]
+			else:
+				humanText += directionsByAngleID[angleID2] + "-" + directionsByAngleID[angleID]
 
 		if buttonToPress is not None:
 			lastButtonPressed = buttonToPress
 			keyToPress = controls[buttonToPress]
 			if sendKeyPresses:
-				print now.strftime('%H:%M:%S'), "- Pressing", buttonToPress
+				print now.strftime('%H:%M:%S'), humanText, "- Pressing", buttonToPress
 				DrawArrowPixels(centerPixelPos, quakePixels, pygame.Color("black"), 3)
 				PressKey(keyToPress)
 			else:
-				print now.strftime('%H:%M:%S'), "- Pressing", buttonToPress, "(sendKeyPresses = False)"
+				print now.strftime('%H:%M:%S'), humanText, "- Pressing", buttonToPress, "(sendKeyPresses = False)"
 			lastButtonPressTime = now
 			
 
@@ -316,8 +328,8 @@ def DrawButtons():
 	elif lastButtonPressed == "b":
 		bbuttonImgToUse = bbuttonselectedimg
 
-	screen.blit(abuttonImgToUse, (centerPixelPos[0] - abuttonimg.get_width() / 2, centerPixelPos[1] - 100 - abuttonimg.get_height() / 2))
-	screen.blit(bbuttonImgToUse, (centerPixelPos[0] - bbuttonimg.get_width() / 2, centerPixelPos[1] + 100 - bbuttonimg.get_height() / 2))
+	screen.blit(abuttonImgToUse, (centerPixelPos[0] - abuttonimg.get_width() / 2, centerPixelPos[1] - doDirectionRadiusInPixels - 40 - abuttonimg.get_height() / 2))
+	screen.blit(bbuttonImgToUse, (centerPixelPos[0] - bbuttonimg.get_width() / 2, centerPixelPos[1] + doDirectionRadiusInPixels + 40 - bbuttonimg.get_height() / 2))
 	screen.blit(dpadImgToUse, (centerPixelPos[0] - dpadimg.get_width() / 2, centerPixelPos[1] - dpadimg.get_height() / 2))
 
 
@@ -407,6 +419,13 @@ while 1:
 		
 		timeInDuration = 1.0 - (timeSinceQuake.seconds / float(periodTimeInSeconds))
 
+		quakeSize = currentQuake.size
+		quakeSize = min(max(quakeSize, 1.0), 6.0)
+		sizeFraction = min(max(quakeSize / 6.0, 0.0), 1.0)
+		minDirectionRadius = 30
+		maxDirectionRadius = 70
+		doDirectionRadiusInPixels = int(minDirectionRadius + ((maxDirectionRadius - minDirectionRadius) * sizeFraction))
+
 		if timeInDuration >= 0:
 			DrawQuakeOnMagnitudeGraph(transparentSurface, currentQuake, timeInDuration, True)
 			DrawQuakeOnMap(transparentSurface, currentQuake, timeInDuration, True)
@@ -458,7 +477,8 @@ while 1:
 
 	triTipX = TimeInDurationToMapPos(currentEvalPos)
 	triTipY = height - 20
-	pygame.draw.polygon(screen, pygame.Color("black"), [[triTipX-5, triTipY+10], [triTipX, triTipY], [triTipX+5, triTipY+10]])
+	triColor = TimeAgoToColor(currentEvalPos)
+	pygame.draw.polygon(screen, triColor, [[triTipX-5, triTipY+15], [triTipX, triTipY], [triTipX+5, triTipY+15]])
 
 	DrawButtons()
 
