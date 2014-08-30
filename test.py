@@ -264,6 +264,8 @@ def TimeAgoToColor(positionInPeriod):
 	color1 = (0, 0, 255)
 	color2 = (255, 0, 0)
 
+	positionInPeriod = min(max(positionInPeriod, 0.0), 1.0)
+
 	return LerpColor(color1, color2, positionInPeriod)
 
 
